@@ -1,46 +1,145 @@
-# Getting Started with Create React App
+# OfficeFlow - Smart Office Management System
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+![OfficeFlow Logo](public/logo192.png)
 
-## Available Scripts
+OfficeFlow is a comprehensive office management solution designed to streamline expense tracking, inventory management, and administrative tasks through an intuitive web interface powered by AI assistance.
 
-In the project directory, you can run:
+## 🚀 Features
 
-### `npm start`
+### 📊 Expense Management
+- Track and categorize expenses
+- Generate detailed expense reports
+- Set budget limits and get alerts
+- Upload and process bill receipts
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+### 📦 Inventory Control
+- Real-time inventory tracking
+- Low stock alerts
+- Supplier management
+- Item categorization and search
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+### 🤖 AI-Powered Assistant
+- Natural language processing for queries
+- Smart expense analysis
+- Inventory recommendations
+- Office management automation
 
-### `npm test`
+### 📱 Modern Dashboard
+- Interactive data visualizations
+- Quick access to key metrics
+- Activity timeline
+- Responsive design for all devices
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## 🛠️ Tech Stack
 
-### `npm run build`
+### Frontend
+- React with TypeScript
+- Material-UI for UI components
+- React Router for navigation
+- Chart.js for data visualization
+- React Hook Form for form handling
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### Backend
+- Node.js with Express
+- MongoDB for database
+- JWT for authentication
+- RESTful API architecture
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### AI Integration
+- Gemini API for natural language processing
+- Smart data analysis
+- Automated reporting
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## 🚀 Getting Started
 
-### `npm run eject`
+### Prerequisites
+- Node.js (v14 or later)
+- npm or yarn
+- MongoDB instance
+- Google Cloud API key (for Gemini AI)
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+### Installation
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/officeflow.git
+   cd officeflow
+   ```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+2. Install dependencies:
+   ```bash
+   # Install client dependencies
+   npm install
+   
+   # Install server dependencies
+   cd server
+   npm install
+   cd ..
+   ```
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+3. Set up environment variables:
+   Create a `.env` file in the root directory with the following variables:
+   ```
+   REACT_APP_API_URL=http://localhost:5000
+   REACT_APP_GOOGLE_API_KEY=your_google_api_key
+   ```
 
-## Learn More
+   Create a `.env` file in the server directory:
+   ```
+   PORT=5000
+   MONGODB_URI=your_mongodb_connection_string
+   JWT_SECRET=your_jwt_secret
+   NODE_ENV=development
+   ```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+4. Start the development servers:
+   ```bash
+   # Start the React app
+   npm start
+   
+   # In a new terminal, start the backend server
+   cd server
+   npm run dev
+   ```
 
+5. Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+
+## 📚 Documentation
+
+### API Endpoints
+- `GET /api/expenses` - Get all expenses
+- `POST /api/expenses` - Create new expense
+- `GET /api/inventory` - Get all inventory items
+- `POST /api/inventory` - Add new inventory item
+- `POST /api/chat` - Process chat messages with AI
+
+### Environment Variables
+- `REACT_APP_API_URL` - Backend API URL
+- `REACT_APP_GOOGLE_API_KEY` - Google Cloud API key
+- `MONGODB_URI` - MongoDB connection string
+- `JWT_SECRET` - Secret for JWT tokens
+- `NODE_ENV` - Application environment (development/production)
+
+## 🤝 Contributing
+
+1. Fork the project
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Material-UI for the amazing UI components
+- React for the frontend framework
+- MongoDB for the database solution
+- Google Cloud for the AI capabilities
+
+---
+
+Made with ❤️ by the OfficeFlow Team
 To learn React, check out the [React documentation](https://reactjs.org/).
