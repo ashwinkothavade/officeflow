@@ -1,23 +1,101 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
+# Dependencies
 /node_modules
+/server/node_modules
 /.pnp
-.pnp.js
+.pnp.*
+*.pem
 
-# testing
+# Testing
 /coverage
+/cypress/videos/
+/cypress/screenshots/
+*.log
 
-# production
+# Production
 /build
+/dist
+/.next
+/out
 
-# misc
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor directories and files
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.idea
 .DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Server specific
+/server/node_modules
+/server/.env
+/server/logs/*.log
+/server/.env.*
+/server/dist
+/server/coverage
+/server/.nyc_output
+/server/*.log
+
+# Client specific
+/client/.env
+/client/.env.*
+/client/build
+
+# IDE specific
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local development
+.cache/
+.temp/
+.tmp/
+
+# Misc
+.vercel
+.netlify
+*.pem
+*.p12
+*.key
+*.crt
+*.cer
+
+# Local development
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# Build files
+.next/
+out/
