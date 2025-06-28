@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { body, validationResult, ValidationChain } from 'express-validator';
-import { ErrorResponse, IValidationError } from './errorHandler';
+import { IValidationError } from './errorHandler';
 
 export const validate = (validations: ValidationChain[]) => {
   return async (req: Request, res: Response, next: NextFunction) => {
@@ -16,7 +16,10 @@ export const validate = (validations: ValidationChain[]) => {
       message: err.msg
     }));
 
-    next(ErrorResponse.badRequest('Validation failed', errorMessages));
+    const error = new Error('Validation failed');
+    (error as any).statusCode = 400;
+    (error as any).errors = errorMessages;
+    next(error);
   };
 };
 

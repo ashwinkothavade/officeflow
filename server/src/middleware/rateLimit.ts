@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
-import { ErrorResponse } from './errorHandler';
 
 // Rate limiting configuration
 const apiLimiter = rateLimit({
@@ -10,12 +9,9 @@ const apiLimiter = rateLimit({
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   handler: (req: Request, res: Response, next: NextFunction) => {
-    next(
-      new ErrorResponse(
-        'Too many requests, please try again later.',
-        429
-      )
-    );
+    const error = new Error('Too many requests, please try again later.');
+    (error as any).statusCode = 429;
+    next(error);
   },
 });
 
@@ -27,12 +23,9 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req: Request, res: Response, next: NextFunction) => {
-    next(
-      new ErrorResponse(
-        'Too many login attempts, please try again later.',
-        429
-      )
-    );
+    const error = new Error('Too many login attempts, please try again later.');
+    (error as any).statusCode = 429;
+    next(error);
   },
 });
 

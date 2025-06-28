@@ -60,6 +60,11 @@ const api = axios.create({
 
 // Helper function to handle API responses
 const handleResponse = (response: any) => {
+  // Check if the response has a success flag and data property
+  if (response.data && typeof response.data.success !== 'undefined' && response.data.data) {
+    return response.data.data;
+  }
+  // Fallback to the entire response data if not in expected format
   return response.data;
 };
 
@@ -88,7 +93,21 @@ export const expenseApi = {
   createExpense: async (expenseData: Omit<Expense, '_id' | 'user' | 'createdAt' | 'updatedAt'>): Promise<Expense> => {
     try {
       const response = await api.post('/expenses', expenseData);
-      return handleResponse(response);
+      const result = handleResponse(response);
+      // Ensure we return the expense data in the expected format
+      return {
+        _id: result._id || result.expense?._id,
+        description: result.description || result.expense?.description,
+        amount: result.amount || result.expense?.amount,
+        category: result.category || result.expense?.category,
+        date: result.date || result.expense?.date,
+        status: result.status || result.expense?.status || 'pending',
+        user: result.user || result.expense?.user || 'public-user',
+        receipt: result.receipt || result.expense?.receipt || '',
+        notes: result.notes || result.expense?.notes || '',
+        createdAt: result.createdAt || result.expense?.createdAt || new Date().toISOString(),
+        updatedAt: result.updatedAt || result.expense?.updatedAt || new Date().toISOString()
+      };
     } catch (error) {
       return handleError(error);
     }
@@ -118,7 +137,21 @@ export const expenseApi = {
   updateExpense: async (id: string, expenseData: Partial<Expense>): Promise<Expense> => {
     try {
       const response = await api.put(`/expenses/${id}`, expenseData);
-      return handleResponse(response);
+      const result = handleResponse(response);
+      // Ensure we return the expense data in the expected format
+      return {
+        _id: result._id || id,
+        description: result.description || expenseData.description || '',
+        amount: result.amount || expenseData.amount || 0,
+        category: result.category || expenseData.category || 'other',
+        date: result.date || expenseData.date || new Date().toISOString(),
+        status: result.status || expenseData.status || 'pending',
+        user: result.user || expenseData.user || 'public-user',
+        receipt: result.receipt || expenseData.receipt || '',
+        notes: result.notes || expenseData.notes || '',
+        createdAt: result.createdAt || new Date().toISOString(),
+        updatedAt: result.updatedAt || new Date().toISOString()
+      };
     } catch (error) {
       return handleError(error);
     }
@@ -128,9 +161,12 @@ export const expenseApi = {
   deleteExpense: async (id: string): Promise<{ success: boolean }> => {
     try {
       const response = await api.delete(`/expenses/${id}`);
-      return handleResponse(response);
+      const result = handleResponse(response);
+      // Return success if the API returns a success flag or if we get here without errors
+      return { success: result.success !== false };
     } catch (error) {
-      return handleError(error);
+      console.error('Error deleting expense:', error);
+      return { success: false };
     }
   },
 

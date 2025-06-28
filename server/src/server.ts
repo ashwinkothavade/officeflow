@@ -9,7 +9,9 @@ import { errorHandler } from './middleware/errorHandler';
 import requestLogger from './middleware/requestLogger';
 import authRoutes from './routes/authRoutes';
 import expenseRoutes from './routes/expenseRoutes';
+import inventoryRoutes from './routes/inventoryRoutes';
 import healthRoutes from './routes/healthRoutes';
+import reportRoutes from './routes/reportRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -62,6 +64,8 @@ app.use(requestLogger);
 app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/expenses', expenseRoutes);
+app.use('/api/inventory', inventoryRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req: Request, res: Response) => {

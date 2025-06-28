@@ -8,6 +8,7 @@
     "build": "tsc",
     "dev": "nodemon --exec ts-node src/server.ts",
     "seed": "ts-node scripts/seed.ts",
+    "seed:inventory": "ts-node scripts/seedInventory.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

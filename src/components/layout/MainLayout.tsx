@@ -56,9 +56,10 @@ const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })<{
 interface MainLayoutProps {
   children: ReactNode;
   title?: string;
+  noSidebar?: boolean;
 }
 
-const MainLayout: React.FC<MainLayoutProps> = ({ children, title = 'OfficeFlow' }) => {
+const MainLayout: React.FC<MainLayoutProps> = ({ children, title = 'OfficeFlow', noSidebar = false }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { logout, isAdmin, currentUser } = useAuth();
   const navigate = useNavigate();
@@ -179,86 +180,90 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, title = 'OfficeFlow' 
 
   return (
     <Box sx={{ display: 'flex' }}>
-      <AppBar
-        position="fixed"
-        sx={{
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          ml: { sm: `${drawerWidth}px` },
-          zIndex: (theme) => theme.zIndex.drawer + 1,
-          boxShadow: 'none',
-          borderBottom: '1px solid',
-          borderColor: 'divider',
-          backgroundColor: 'background.paper',
-          color: 'text.primary',
-        }}
-      >
-        <Toolbar>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' } }}
+      {!noSidebar && (
+        <AppBar
+          position="fixed"
+          sx={{
+            width: { sm: `calc(100% - ${drawerWidth}px)` },
+            ml: { sm: `${drawerWidth}px` },
+            zIndex: (theme) => theme.zIndex.drawer + 1,
+            boxShadow: 'none',
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            backgroundColor: 'background.paper',
+            color: 'text.primary',
+          }}
+        >
+          <Toolbar>
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2, display: { sm: 'none' } }}
+            >
+              <MenuIcon />
+            </IconButton>
+            <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+              {getPageTitle()}
+            </Typography>
+          </Toolbar>
+        </AppBar>
+      )}
+      {!noSidebar && (
+        <Box
+          component="nav"
+          sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
+          aria-label="mailbox folders"
+        >
+          {/* Mobile Drawer */}
+          <Drawer
+            variant="temporary"
+            open={mobileOpen}
+            onClose={handleDrawerToggle}
+            ModalProps={{
+              keepMounted: true, // Better open performance on mobile.
+            }}
+            sx={{
+              display: { xs: 'block', sm: 'none' },
+              '& .MuiDrawer-paper': {
+                boxSizing: 'border-box',
+                width: drawerWidth,
+              },
+            }}
           >
-            <MenuIcon />
-          </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            {getPageTitle()}
-          </Typography>
-        </Toolbar>
-      </AppBar>
-      <Box
-        component="nav"
-        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
-        aria-label="mailbox folders"
-      >
-        {/* Mobile Drawer */}
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{
-            keepMounted: true, // Better open performance on mobile.
-          }}
-          sx={{
-            display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': {
-              boxSizing: 'border-box',
-              width: drawerWidth,
-            },
-          }}
-        >
-          {drawer}
-        </Drawer>
-        
-        {/* Desktop Drawer */}
-        <Drawer
-          variant="permanent"
-          sx={{
-            display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': {
-              boxSizing: 'border-box',
-              width: drawerWidth,
-              position: 'fixed',
-              height: '100vh',
-              zIndex: (theme) => theme.zIndex.drawer + 1,
-              borderRight: 'none',
-              boxShadow: theme.shadows[2],
-            },
-          }}
-          open
-        >
-          {drawer}
-        </Drawer>
-      </Box>
+            {drawer}
+          </Drawer>
+          
+          {/* Desktop Drawer */}
+          <Drawer
+            variant="permanent"
+            sx={{
+              display: { xs: 'none', sm: 'block' },
+              '& .MuiDrawer-paper': {
+                boxSizing: 'border-box',
+                width: drawerWidth,
+                position: 'fixed',
+                height: '100vh',
+                zIndex: (theme) => theme.zIndex.drawer + 1,
+                borderRight: 'none',
+                boxShadow: theme.shadows[2],
+              },
+            }}
+            open
+          >
+            {drawer}
+          </Drawer>
+        </Box>
+      )}
       <Box
         component="main"
         sx={{
           flexGrow: 1,
-          width: { xs: '100%', sm: `calc(100% - ${drawerWidth}px)` },
+          width: '100%',
           minHeight: '100vh',
-          ml: { sm: `${drawerWidth}px` },
-          pt: '64px', // Account for AppBar height
+          ml: { sm: noSidebar ? 0 : `${drawerWidth}px` },
+          pt: noSidebar ? 0 : '64px', // Only add padding if AppBar is present
           position: 'relative',
           zIndex: 1,
           overflow: 'auto',

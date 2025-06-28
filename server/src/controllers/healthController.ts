@@ -40,7 +40,7 @@ export const healthCheck = async (req: Request, res: Response) => {
 
     res.status(200).json(healthData);
   } catch (error) {
-    throw new ErrorResponse('Health check failed', 503);
+    throw ErrorResponse('Health check failed', 503);
   }
 };
 
