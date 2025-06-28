@@ -2,11 +2,14 @@ import React, { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { Box, Toolbar } from '@mui/material';
+import { Box, Toolbar, Modal, TextField, Button, Typography, Paper } from '@mui/material';
 import { AuthProvider } from './context/AuthContext';
+import { ChatProvider } from './contexts/ChatContext';
 import PrivateRoute from './components/auth/PrivateRoute';
 import LoadingSpinner from './components/common/LoadingSpinner';
 import MainLayout from './components/layout/MainLayout';
+import ChatBot from './components/ChatBot';
+import FloatingChatButton from './components/FloatingChatButton';
 
 // Lazy load pages for better performance
 const Login = lazy(() => import('./components/auth/Login'));
@@ -56,14 +59,129 @@ const theme = createTheme({
   },
 });
 
+const ChatModal: React.FC<{ open: boolean; onClose: () => void; apiKey: string | null; setApiKey: (key: string) => void }> = ({ 
+  open, 
+  onClose, 
+  apiKey, 
+  setApiKey 
+}) => {
+  const [key, setKey] = React.useState(apiKey || '');
+  const [isValid, setIsValid] = React.useState(false);
+
+  React.useEffect(() => {
+    setKey(apiKey || '');
+  }, [apiKey]);
+
+  const handleSave = () => {
+    if (key.trim()) {
+      setApiKey(key.trim());
+      onClose();
+    }
+  };
+
+  const validateKey = (value: string) => {
+    // Basic validation for Gemini API key (starts with 'AIza' and is at least 30 chars)
+    return value.startsWith('AIza') && value.length >= 30;
+  };
+
+  return (
+    <Modal open={open} onClose={onClose}>
+      <Box sx={{
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: 500,
+        bgcolor: 'background.paper',
+        boxShadow: 24,
+        p: 4,
+        borderRadius: 2,
+      }}>
+        <Typography variant="h6" gutterBottom>
+          Enter Your Gemini API Key
+        </Typography>
+        <Typography variant="body2" color="text.secondary" paragraph>
+          To use the AI chat assistant, please enter your Gemini API key. 
+          Your key is stored locally in your browser and only sent to Google's servers.
+        </Typography>
+        <TextField
+          fullWidth
+          label="Gemini API Key"
+          variant="outlined"
+          margin="normal"
+          value={key}
+          onChange={(e) => {
+            const value = e.target.value;
+            setKey(value);
+            setIsValid(validateKey(value));
+          }}
+          placeholder="AIza..."
+          helperText="Enter a valid Gemini API key that starts with 'AIza'"
+        />
+        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+          <Button onClick={onClose} color="inherit">
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSave} 
+            variant="contained" 
+            color="primary"
+            disabled={!isValid}
+          >
+            Save & Continue
+          </Button>
+        </Box>
+      </Box>
+    </Modal>
+  );
+};
+
 function App() {
+  const [showApiKeyModal, setShowApiKeyModal] = React.useState(false);
+  const [apiKey, setApiKey] = React.useState<string | null>(null);
+  const [expenses, setExpenses] = React.useState<any[]>([]);
+  const [inventory, setInventory] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    // Check if API key exists in localStorage
+    const savedApiKey = localStorage.getItem('gemini_api_key');
+    if (savedApiKey) {
+      setApiKey(savedApiKey);
+    } else {
+      setShowApiKeyModal(true);
+    }
+  }, []);
+
+  const handleSetApiKey = (key: string) => {
+    setApiKey(key);
+    localStorage.setItem('gemini_api_key', key);
+    setShowApiKeyModal(false);
+  };
+
+  // The ChatBot component will fetch its own data when needed
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Router>
         <AuthProvider>
-          <Suspense fallback={<LoadingSpinner fullScreen />}>
-            <Routes>
+          <ChatProvider>
+            <Suspense fallback={<LoadingSpinner fullScreen />}>
+              {/* Chat UI Components */}
+              <PrivateRoute>
+                <FloatingChatButton />
+                {apiKey && <ChatBot apiKey={apiKey} />}
+              </PrivateRoute>
+              
+              {/* API Key Modal */}
+              <ChatModal 
+                open={showApiKeyModal} 
+                onClose={() => setShowApiKeyModal(false)}
+                apiKey={apiKey}
+                setApiKey={handleSetApiKey}
+              />
+              
+              <Routes>
               {/* Public routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
@@ -107,6 +225,7 @@ function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
+          </ChatProvider>
         </AuthProvider>
       </Router>
     </ThemeProvider>
