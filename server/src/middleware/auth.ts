@@ -1,75 +1,102 @@
-import { Request, Response, NextFunction, RequestHandler } from 'express';
+import { Response, NextFunction, Request, RequestHandler } from 'express';
 import jwt from 'jsonwebtoken';
-import { Types } from 'mongoose';
-import User, { IUser, IUserDocument } from '../models/User';
+import User from '../models/User';
+import { AuthenticatedRequest, JwtPayload } from '../types/express';
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: IUser & { _id: Types.ObjectId };
-    }
-  }
-}
+// Custom type for async request handlers
+type AsyncRequestHandler = (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => Promise<void> | void;
 
-export const protect: RequestHandler = async (req, res, next) => {
-  try {
-    let token;
-    
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
-    } else if (req.cookies?.token) {
-      token = req.cookies.token;
-    }
+// Helper to convert AsyncRequestHandler to Express RequestHandler
+export const asyncHandler = (fn: AsyncRequestHandler): RequestHandler => 
+  (req, res, next) => {
+    Promise.resolve(fn(req as AuthenticatedRequest, res, next)).catch(next);
+    return undefined;
+  };
 
-    if (!token) {
-      res.status(401).json({ success: false, message: 'Not authorized, no token' });
-      return;
-    }
-
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as { id: string };
-      // Get user and attach to request
-      const user = await User.findById(decoded.id).select('-password').lean().exec();
-      if (!user) {
-        res.status(401).json({ success: false, message: 'User not found' });
-        return;
-      }
-      
-      // Type assertion to IUser since we've excluded password
-      req.user = user as unknown as IUser & { _id: Types.ObjectId };
-      next();
-    } catch (error) {
-      if (error instanceof Error) {
-        res.status(401).json({ success: false, message: 'Not authorized, token failed' });
-        return;
-      }
-      next(error);
-    }
-  } catch (error) {
-    next(error);
-  }
+// Helper to handle responses in a type-safe way
+const sendError = (res: Response, status: number, message: string) => {
+  res.status(status).json({ success: false, message });
+  return undefined;
 };
 
-export const authorize = (...allowedRoles: string[]): RequestHandler => {
-  return (req, res, next) => {
-    const user = req.user as IUser | undefined;
+// Protect routes - require authentication
+export const protect: RequestHandler = (req, res, next) => {
+  const handleError = (message: string) => {
+    sendError(res, 401, message);
+    return undefined;
+  };
+
+  let token: string | undefined;
+  
+  // Get token from header or cookie
+  if (req.headers.authorization?.startsWith('Bearer ')) {
+    token = req.headers.authorization.split(' ')[1];
+  } else if (req.cookies?.token) {
+    token = req.cookies.token;
+  }
+
+  if (!token) {
+    return handleError('Not authorized, no token');
+  }
+
+  const verifyToken = async () => {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      throw new Error('JWT secret not configured');
+    }
+    
+    const decoded = jwt.verify(token as string, secret) as JwtPayload;
+    
+    // Get user from the token
+    const user = await User.findById(decoded.id).select('-password').lean().exec();
     
     if (!user) {
-      res.status(401).json({
-        success: false,
-        message: 'Authentication required'
-      });
-      return;
+      return handleError('User not found');
     }
     
-    if (!allowedRoles.includes(user.role)) {
-      res.status(403).json({
-        success: false,
-        message: `User role ${user.role} is not authorized to access this route`
-      });
-      return;
-    }
-    
+    // Convert the user to a plain object and ensure it has the correct type
+    const userObj = user.toObject ? user.toObject() : user;
+    (req as AuthenticatedRequest).user = userObj as unknown as AuthenticatedRequest['user'];
     next();
+    return undefined;
   };
+
+  verifyToken().catch(() => {
+    handleError('Not authorized, token failed');
+  });
+};
+
+// Authorize based on user role
+export const authorize = (...allowedRoles: string[]): RequestHandler => 
+  (req, res, next) => {
+    const user = (req as AuthenticatedRequest).user;
+    if (!user) {
+      return sendError(res, 401, 'Not authorized to access this route');
+    }
+
+    if (!allowedRoles.includes(user.role)) {
+      return sendError(res, 403, 'You are not authorized to perform this action');
+    }
+
+    next();
+    return undefined;
+  };
+
+// Middleware to check if user is admin
+export const isAdmin: RequestHandler = (req, res, next) => {
+  const user = (req as AuthenticatedRequest).user;
+  if (!user) {
+    return sendError(res, 401, 'Not authorized to access this route');
+  }
+
+  if (user.role !== 'admin') {
+    return sendError(res, 403, 'Not authorized to access this route as admin');
+  }
+
+  next();
+  return undefined;
 };

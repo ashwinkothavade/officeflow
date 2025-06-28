@@ -12,6 +12,7 @@ type User = firebase.User | null;
 
 interface AuthContextType {
   currentUser: User | null;
+  setCurrentUser: (user: User | null) => void;
   loading: boolean;
   isAdmin: boolean;
   login: (email: string, password: string) => Promise<void>;
@@ -147,6 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = {
     currentUser,
+    setCurrentUser,
     loading,
     isAdmin,
     login,

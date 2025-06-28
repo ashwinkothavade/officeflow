@@ -12,14 +12,15 @@ import ChatBot from './components/ChatBot';
 import FloatingChatButton from './components/FloatingChatButton';
 
 // Lazy load pages for better performance
-const Login = lazy(() => import('./components/auth/Login'));
-const Signup = lazy(() => import('./components/auth/Signup'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Expenses = lazy(() => import('./pages/Expenses'));
 const Inventory = lazy(() => import('./pages/Inventory'));
 const Reports = lazy(() => import('./pages/Reports'));
 const UploadBills = lazy(() => import('./pages/UploadBills'));
 const Home = lazy(() => import('./pages/Home'));
+const UserManagement = lazy(() => import('./pages/UserManagement'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 
 const theme = createTheme({
   palette: {
@@ -182,49 +183,87 @@ function App() {
               />
               
               <Routes>
-              {/* Public routes */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/" element={<Home />} />
-              
-              {/* Protected routes with layout */}
-              <Route
-                element={
+                {/* Public routes */}
+                <Route path="/login" element={
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <LoginPage />
+                  </Suspense>
+                } />
+                <Route path="/register" element={
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <RegisterPage />
+                  </Suspense>
+                } />
+                
+                {/* Protected routes */}
+                <Route path="/" element={
                   <PrivateRoute>
                     <MainLayout>
-                      <Outlet />
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <Home />
+                      </Suspense>
                     </MainLayout>
                   </PrivateRoute>
-                }
-              >
-                <Route index element={<Navigate to="/dashboard" replace />} />
-                <Route 
-                  path="dashboard" 
-                  element={<Dashboard />}
-                />
-                <Route 
-                  path="expenses" 
-                  element={<Expenses />}
-                />
-                <Route 
-                  path="inventory" 
-                  element={<Inventory />}
-                />
-                <Route 
-                  path="reports" 
-                  element={<Reports />}
-                />
-                <Route 
-                  path="upload-bills" 
-                  element={<UploadBills />}
-                />
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
-              </Route>
-              
-              {/* Catch all other routes - redirect to home */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Suspense>
+                } />
+                <Route path="/dashboard" element={
+                  <PrivateRoute>
+                    <MainLayout>
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <Dashboard />
+                      </Suspense>
+                    </MainLayout>
+                  </PrivateRoute>
+                } />
+                <Route path="/expenses" element={
+                  <PrivateRoute>
+                    <MainLayout>
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <Expenses />
+                      </Suspense>
+                    </MainLayout>
+                  </PrivateRoute>
+                } />
+                <Route path="/inventory" element={
+                  <PrivateRoute>
+                    <MainLayout>
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <Inventory />
+                      </Suspense>
+                    </MainLayout>
+                  </PrivateRoute>
+                } />
+                <Route path="/reports" element={
+                  <PrivateRoute>
+                    <MainLayout>
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <Reports />
+                      </Suspense>
+                    </MainLayout>
+                  </PrivateRoute>
+                } />
+                <Route path="/upload-bills" element={
+                  <PrivateRoute>
+                    <MainLayout>
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <UploadBills />
+                      </Suspense>
+                    </MainLayout>
+                  </PrivateRoute>
+                } />
+                <Route path="/user-management" element={
+                  <PrivateRoute>
+                    <MainLayout>
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <UserManagement />
+                      </Suspense>
+                    </MainLayout>
+                  </PrivateRoute>
+                } />
+                
+                {/* Catch all other routes - redirect to home */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
           </ChatProvider>
         </AuthProvider>
       </Router>

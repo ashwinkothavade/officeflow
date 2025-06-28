@@ -1,19 +1,25 @@
-import { IUser } from '../../models/User';
+import { IUser, IUserDocument, UserRole } from '../../models/User';
 import { Types } from 'mongoose';
-import { Request as ExpressRequest, Response, NextFunction, RequestHandler as ExpressRequestHandler } from 'express';
+import { Request as ExpressRequest, Response, NextFunction } from 'express';
 
 // Extend the Express namespace to include our custom properties
 declare global {
   namespace Express {
     interface Request {
-      user?: IUser & { _id: Types.ObjectId };
+      user?: IUserDocument & {
+        _id: Types.ObjectId;
+        role: UserRole;
+      };
     }
   }
 }
 
 // Export the authenticated request type with all necessary properties
 export interface AuthenticatedRequest extends ExpressRequest {
-  user: IUser & { _id: Types.ObjectId };
+  user: IUserDocument & {
+    _id: Types.ObjectId;
+    role: UserRole;
+  };
 }
 
 // Type for our async route handlers
@@ -24,6 +30,12 @@ export type AsyncRequestHandler = (
 ) => Promise<void> | void;
 
 // Type for our route handlers that works with Express
-interface RequestHandler {
+export interface RequestHandler {
   (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> | void;
+}
+
+// Type for JWT payload
+export interface JwtPayload {
+  id: string;
+  [key: string]: any;
 }

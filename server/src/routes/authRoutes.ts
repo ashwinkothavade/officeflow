@@ -1,9 +1,8 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router } from 'express';
 import { register, login, logout, getUserProfile } from '../controllers/authController';
 import { protect } from '../middleware/auth';
 import { validate, validationRules } from '../middleware/validation';
 import { authLimiter } from '../middleware/rateLimit';
-import asyncHandler from '../utils/asyncHandler';
 
 const router = Router();
 
@@ -14,19 +13,17 @@ router.use(authLimiter);
 router.post(
   '/register',
   validate(validationRules.register),
-  asyncHandler(register)
+  (req, res) => register(req, res)
 );
 
 router.post(
   '/login',
   validate(validationRules.login),
-  asyncHandler(login)
+  (req, res) => login(req, res)
 );
 
 // Protected routes
-router.use(protect);
-
-router.get('/profile', asyncHandler(getUserProfile));
-router.post('/logout', asyncHandler(logout));
+router.get('/profile', protect, (req, res) => getUserProfile(req, res));
+router.post('/logout', protect, (req, res) => logout(req, res));
 
 export default router;
