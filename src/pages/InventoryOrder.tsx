@@ -36,6 +36,16 @@ const InventoryOrder: React.FC = () => {
   const [isSending, setIsSending] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newItem, setNewItem] = useState<Omit<InventoryItem, 'id'>>({ 
+    name: '',
+    category: '',
+    quantity: 0,
+    minQuantity: 1,
+    expiryDate: '',
+    vendorEmail: '',
+    vendorName: ''
+  });
   
   // Fetch inventory data
   useEffect(() => {
@@ -165,6 +175,30 @@ Please format the response with "Subject:" on the first line and the email body 
     }
   };
 
+  const handleAddItem = () => {
+    if (!newItem.name || !newItem.category || !newItem.vendorName || !newItem.vendorEmail) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    const newId = (inventory.length + 1).toString();
+    setInventory([...inventory, { ...newItem, id: newId }]);
+    
+    // Reset form
+    setNewItem({ 
+      name: '',
+      category: '',
+      quantity: 0,
+      minQuantity: 1,
+      expiryDate: '',
+      vendorEmail: '',
+      vendorName: ''
+    });
+    
+    setShowAddForm(false);
+    setError(null);
+  };
+
   if (loading) {
     return (
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
@@ -180,12 +214,102 @@ Please format the response with "Subject:" on the first line and the email body 
           <InventoryIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
           Inventory Reorder
         </Typography>
+        <Button 
+          variant="contained" 
+          color="primary" 
+          startIcon={<AddIcon />}
+          onClick={() => setShowAddForm(!showAddForm)}
+        >
+          {showAddForm ? 'Cancel' : 'Add New Item'}
+        </Button>
       </Box>
 
       {error && (
         <Box mb={3}>
           <Typography color="error">{error}</Typography>
         </Box>
+      )}
+
+      {showAddForm && (
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h6" gutterBottom>Add New Item</Typography>
+          <Box display="grid" gap={2} gridTemplateColumns={{ xs: '1fr', md: '1fr 1fr' }}>
+            <TextField
+              label="Item Name"
+              value={newItem.name}
+              onChange={(e) => setNewItem({...newItem, name: e.target.value})}
+              fullWidth
+              required
+            />
+            <TextField
+              label="Category"
+              value={newItem.category}
+              onChange={(e) => setNewItem({...newItem, category: e.target.value})}
+              fullWidth
+              required
+            />
+            <TextField
+              label="Current Quantity"
+              type="number"
+              value={newItem.quantity}
+              onChange={(e) => setNewItem({...newItem, quantity: Number(e.target.value)})}
+              fullWidth
+              required
+              InputProps={{ inputProps: { min: 0 } }}
+            />
+            <TextField
+              label="Minimum Quantity"
+              type="number"
+              value={newItem.minQuantity}
+              onChange={(e) => setNewItem({...newItem, minQuantity: Number(e.target.value)})}
+              fullWidth
+              required
+              InputProps={{ inputProps: { min: 1 } }}
+            />
+            <TextField
+              label="Vendor Name"
+              value={newItem.vendorName}
+              onChange={(e) => setNewItem({...newItem, vendorName: e.target.value})}
+              fullWidth
+              required
+            />
+            <TextField
+              label="Vendor Email"
+              type="email"
+              value={newItem.vendorEmail}
+              onChange={(e) => setNewItem({...newItem, vendorEmail: e.target.value})}
+              fullWidth
+              required
+            />
+            <TextField
+              label="Expiry Date (Optional)"
+              type="date"
+              value={newItem.expiryDate}
+              onChange={(e) => setNewItem({...newItem, expiryDate: e.target.value})}
+              InputLabelProps={{
+                shrink: true,
+              }}
+              fullWidth
+            />
+            <Box gridColumn={{ xs: '1 / -1', md: '1 / -1' }} display="flex" justifyContent="flex-end">
+              <Button 
+                variant="contained" 
+                color="primary" 
+                onClick={handleAddItem}
+                disabled={
+                  !newItem.name || 
+                  !newItem.category || 
+                  isNaN(newItem.quantity) || 
+                  isNaN(newItem.minQuantity) ||
+                  !newItem.vendorName ||
+                  !newItem.vendorEmail
+                }
+              >
+                Add Item
+              </Button>
+            </Box>
+          </Box>
+        </Paper>
       )}
 
       <Paper sx={{ p: 3, mb: 3 }}>
