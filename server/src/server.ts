@@ -14,6 +14,7 @@ import healthRoutes from './routes/healthRoutes';
 import reportRoutes from './routes/reportRoutes';
 import userRoutes from './routes/userRoutes';
 import billRoutes from './routes/billRoutes';
+import foodItemRoutes from './routes/foodItemRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -125,6 +126,7 @@ app.use('/api/inventory', inventoryRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/bills', billRoutes);
+app.use('/api/food-items', foodItemRoutes);
 
 // Serve static files from uploads directory
 app.use('/api/bills', express.static(path.join(__dirname, '..', 'uploads', 'receipts')));

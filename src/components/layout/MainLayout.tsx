@@ -84,7 +84,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, title = 'OfficeFlow',
       path: '/inventory',
       children: [
         { text: 'Manage Inventory', path: '/inventory' },
-        { text: 'Reorder', path: '/inventory/order' }
+        { text: 'Reorder', path: '/inventory/order' },
+        { text: 'Food Inventory', path: '/inventory/food' }
       ]
     },
     { text: 'Reports', icon: <InsightsIcon />, path: '/reports' },

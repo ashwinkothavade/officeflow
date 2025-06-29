@@ -11,7 +11,7 @@ export interface IFoodItem {
   lastRestocked: Date;
   supplier?: string;
   location?: string;
-  user: Types.ObjectId;
+  user?: Types.ObjectId;
   isExpired?: boolean;
   daysUntilExpiry?: number;
   createdAt?: Date;
@@ -48,8 +48,12 @@ const foodItemSchema = new Schema<IFoodItemDocument, IFoodItemModel>({
   category: {
     type: String,
     required: true,
-    enum: ['dairy', 'meat', 'vegetables', 'fruits', 'beverages', 'snacks', 'grains', 'spices', 'others'],
-    default: 'others'
+    enum: [
+      'Dairy', 'Meat', 'Vegetables', 'Fruits', 'Beverages', 
+      'Snacks', 'Grains', 'Condiments', 'Bakery', 'Frozen', 
+      'Canned Goods', 'Deli', 'Seafood', 'Desserts', 'Other'
+    ],
+    default: 'Other'
   },
   expiryDate: {
     type: Date,
@@ -75,7 +79,7 @@ const foodItemSchema = new Schema<IFoodItemDocument, IFoodItemModel>({
   user: {
     type: Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false
   },
   isExpired: {
     type: Boolean,

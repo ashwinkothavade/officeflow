@@ -22,10 +22,12 @@ interface AuthContextType {
   setCurrentUser: (user: AuthContextUser) => void;
   loading: boolean;
   isAdmin: boolean;
+  token: string | null;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name: string) => Promise<void>;
   loginWithGoogle: () => Promise<firebase.auth.UserCredential>;
   logout: () => Promise<void>;
+  getToken: (forceRefresh?: boolean) => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -48,6 +50,7 @@ const ADMIN_EMAILS = [
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<AuthContextUser>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -56,11 +59,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return email ? ADMIN_EMAILS.includes(email) : false;
   }, []);
 
+  // Get the current user's ID token
+  const getToken = useCallback(async (forceRefresh = false): Promise<string | null> => {
+    if (!currentUser) return null;
+    try {
+      const token = await (currentUser as firebase.User).getIdToken(forceRefresh);
+      setToken(token);
+      return token;
+    } catch (error) {
+      console.error('Error getting token:', error);
+      return null;
+    }
+  }, [currentUser]);
+
   // Update user data and admin status
   const updateUserData = useCallback(async (user: firebase.User | null): Promise<AppUser | null> => {
     if (!user) {
       setCurrentUser(null);
       setIsAdmin(false);
+      setToken(null);
       return null;
     }
 
@@ -94,6 +111,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return user;
     }
   }, [checkIsAdmin]);
+
+  // Get token when currentUser changes
+  useEffect(() => {
+    if (currentUser) {
+      getToken();
+    } else {
+      setToken(null);
+    }
+  }, [currentUser, getToken]);
 
   // Listen for auth state changes
   useEffect(() => {
@@ -367,10 +393,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCurrentUser,
     loading,
     isAdmin,
+    token,
     login,
     signup,
     loginWithGoogle,
     logout,
+    getToken,
   };
 
   return (

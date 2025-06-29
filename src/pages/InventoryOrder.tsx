@@ -37,6 +37,7 @@ const InventoryOrder: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [recipientEmail, setRecipientEmail] = useState('');
   const [newItem, setNewItem] = useState<Omit<InventoryItem, 'id'>>({ 
     name: '',
     category: '',
@@ -120,7 +121,7 @@ Vendor: ${selectedItemsData[0]?.vendorName || 'our supplier'}
 
 Please format the response with "Subject:" on the first line and the email body following it.`;
 
-      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=' + apiKey, {
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -158,19 +159,41 @@ Please format the response with "Subject:" on the first line and the email body 
 
   const handleSendEmail = async () => {
     if (!emailSubject || !emailBody) return;
+    if (!recipientEmail) {
+      setError('Please enter a recipient email address');
+      return;
+    }
     
-    setIsSending(true);
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(recipientEmail)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+    
     try {
-      // TODO: Implement actual email sending
-      console.log('Sending email:', { subject: emailSubject, body: emailBody });
-      alert('Order request sent successfully!');
-      setSelectedItems([]);
-      setEmailSubject('');
-      setEmailBody('');
+      // Encode the subject and body for URL
+      const encodedSubject = encodeURIComponent(emailSubject);
+      const encodedBody = encodeURIComponent(emailBody);
+      
+      // Create mailto link
+      const mailtoLink = `mailto:${recipientEmail}?subject=${encodedSubject}&body=${encodedBody}`;
+      
+      // Open default email client
+      window.location.href = mailtoLink;
+      
+      // Reset form after a short delay
+      setTimeout(() => {
+        setSelectedItems([]);
+        setEmailSubject('');
+        setEmailBody('');
+        setRecipientEmail('');
+        setIsSending(false);
+      }, 1000);
+      
     } catch (error) {
-      console.error('Error sending email:', error);
-      setError('Failed to send order request. Please try again.');
-    } finally {
+      console.error('Error preparing email:', error);
+      setError('Failed to prepare email. Please try again.');
       setIsSending(false);
     }
   };
@@ -365,15 +388,27 @@ Please format the response with "Subject:" on the first line and the email body 
           >
             {isGenerating ? 'Generating...' : 'Generate Email'}
           </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleSendEmail}
-            disabled={!emailSubject || !emailBody || isSending}
-            startIcon={isSending ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
-          >
-            {isSending ? 'Sending...' : 'Send Order'}
-          </Button>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, width: '100%' }}>
+            <TextField
+              label="Recipient Email"
+              type="email"
+              value={recipientEmail}
+              onChange={(e) => setRecipientEmail(e.target.value)}
+              fullWidth
+              required
+              placeholder="vendor@example.com"
+            />
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleSendEmail}
+              disabled={!emailSubject || !emailBody || !recipientEmail || isSending}
+              startIcon={isSending ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
+              fullWidth
+            >
+              {isSending ? 'Preparing Email...' : 'Open Email Client'}
+            </Button>
+          </Box>
         </Box>
       </Paper>
     </Container>
