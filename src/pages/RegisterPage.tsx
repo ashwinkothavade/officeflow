@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Button, Container, Paper, Tab, Tabs, TextField, Typography } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
-import { auth } from '../firebase';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -58,31 +57,40 @@ const RegisterPage: React.FC = () => {
       return setError('Passwords do not match');
     }
 
+    if (!name.trim()) {
+      return setError('Please enter your name');
+    }
+
     setError('');
     setLoading(true);
 
     try {
-      await signup(email, password);
-      // Update user profile with display name
-      if (auth.currentUser) {
-        await auth.currentUser.updateProfile({
-          displayName: name,
-        });
-      }
-      navigate('/');
+      // Pass name as the third parameter to signup
+      await signup(email, password, name);
+      // The signup function now handles the login and auth state
+      // Redirect to onboarding after successful signup
+      navigate('/onboarding');
     } catch (err: any) {
-      setError(err.message || 'Failed to create an account');
+      console.error('Signup error:', err);
+      setError(err.message || 'Failed to create an account. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleRegister = async () => {
+    setError('');
+    setLoading(true);
+    
     try {
       await loginWithGoogle();
-      navigate('/');
+      // The loginWithGoogle function will handle auth state and redirection
+      navigate('/onboarding');
     } catch (err: any) {
-      setError(err.message || 'Failed to register with Google');
+      console.error('Google signup error:', err);
+      setError(err.message || 'Failed to register with Google. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 

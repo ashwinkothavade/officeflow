@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { register, login, logout, getUserProfile } from '../controllers/authController';
+import { register, login, logout, getUserProfile, googleAuth } from '../controllers/authController';
 import { protect } from '../middleware/auth';
 import { validate, validationRules } from '../middleware/validation';
 import { authLimiter } from '../middleware/rateLimit';
@@ -21,6 +21,9 @@ router.post(
   validate(validationRules.login),
   (req, res) => login(req, res)
 );
+
+// Google OAuth route (no validation middleware needed as it uses Firebase token)
+router.post('/google', (req, res) => googleAuth(req, res));
 
 // Protected routes
 router.get('/profile', protect, (req, res) => getUserProfile(req, res));

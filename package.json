@@ -5,6 +5,7 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@google/generative-ai": "^0.24.1",
     "@mui/icons-material": "^7.1.2",
     "@mui/material": "^7.1.2",
     "@mui/x-date-pickers": "^8.6.0",
@@ -19,6 +20,7 @@
     "@types/react-dom": "^19.1.6",
     "@types/react-dropzone": "^5.1.0",
     "@types/react-router-dom": "^5.3.3",
+    "@types/react-toastify": "^4.0.2",
     "axios": "^1.10.0",
     "date-fns": "^4.1.0",
     "firebase": "^8.10.1",
@@ -27,6 +29,7 @@
     "react-dropzone": "^14.3.8",
     "react-router-dom": "^7.6.2",
     "react-scripts": "5.0.1",
+    "react-toastify": "^11.0.5",
     "typescript": "^4.9.5",
     "web-vitals": "^2.1.4"
   },
@@ -53,5 +56,11 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "ts-loader": "^9.5.2",
+    "webpack": "^5.99.9",
+    "webpack-cli": "^6.0.1",
+    "webpack-dev-server": "^5.2.2"
   }
 }

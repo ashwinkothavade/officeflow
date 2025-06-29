@@ -12,7 +12,6 @@ import {
   Select, 
   MenuItem, 
   FormControl, 
-  InputLabel, 
   SelectChangeEvent, 
   Snackbar, 
   Alert,
@@ -23,7 +22,7 @@ import {
 } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
-import { API_BASE_URL } from '../config';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
 
 interface User {
   _id: string;
@@ -67,14 +66,41 @@ const UserManagement: React.FC = () => {
         // Get the Firebase ID token for authentication
         const idToken = await currentUser.getIdToken();
         
-        const response = await axios.get<ApiResponse<UsersResponse>>(
-          `${API_BASE_URL}/api/users`,
+        // Create axios instance with default config
+        const api = axios.create({
+          baseURL: API_BASE_URL,
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          }
+        });
+
+        // Add response interceptor to handle 401 errors
+        api.interceptors.response.use(
+          response => response,
+          async error => {
+            if (error.response?.status === 401) {
+              console.log('Received 401, attempting to refresh token...');
+              try {
+                // Try to refresh the token
+                const newToken = await currentUser.getIdToken(true);
+                error.config.headers['Authorization'] = `Bearer ${newToken}`;
+                return axios.request(error.config);
+              } catch (refreshError) {
+                console.error('Token refresh failed:', refreshError);
+                // If refresh fails, redirect to login
+                window.location.href = '/login';
+                return Promise.reject(refreshError);
+              }
+            }
+            return Promise.reject(error);
+          }
+        );
+
+        const response = await api.get<ApiResponse<UsersResponse>>(
+          '/api/users',
           {
-            headers: { 
-              'Authorization': `Bearer ${idToken}`,
-              'Content-Type': 'application/json'
-            },
-            withCredentials: true,
             params: {
               page: page + 1,
               limit: rowsPerPage

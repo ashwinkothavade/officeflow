@@ -5,10 +5,11 @@ export type UserRole = 'user' | 'admin' | 'manager';
 
 // Interface for the User document
 export interface IUser {
-  firebaseUid: string;
+  firebaseUid?: string;
   email: string;
   name: string;
   role: UserRole;
+  password?: string;
   photoURL?: string;
   department?: string;
   createdAt?: Date;
@@ -28,8 +29,9 @@ export interface IUserModel extends Model<IUserDocument> {}
 const userSchema = new Schema<IUserDocument, IUserModel>({
   firebaseUid: {
     type: String,
-    required: true,
+    required: false,
     unique: true,
+    sparse: true,
     index: true
   },
   email: { 
@@ -37,7 +39,16 @@ const userSchema = new Schema<IUserDocument, IUserModel>({
     required: true, 
     unique: true,
     trim: true,
-    lowercase: true 
+    lowercase: true,
+    match: [/^\S+@\S+\.\S+$/, 'Please use a valid email address']
+  },
+  password: {
+    type: String,
+    required: function() {
+      return !this.firebaseUid; // Required only if not using Firebase
+    },
+    minlength: 6,
+    select: false // Don't return password by default
   },
   name: { 
     type: String, 

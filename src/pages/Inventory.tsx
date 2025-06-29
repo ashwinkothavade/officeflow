@@ -43,6 +43,7 @@ import {
   CalendarToday as CalendarTodayIcon,
   AttachMoney as AttachMoneyIcon
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -134,6 +135,12 @@ const Inventory: React.FC = () => {
     message: '',
     severity: 'info',
   });
+
+  const navigate = useNavigate();
+
+  const handleReorderClick = () => {
+    navigate('/inventory/order');
+  };
 
   const handleRequestSort = (property: keyof InventoryItem) => {
     const isAsc = orderBy === property && order === 'asc';
@@ -458,15 +465,28 @@ const Inventory: React.FC = () => {
         <Typography variant="h4" component="h1" gutterBottom>
           Inventory
         </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<AddIcon />}
-          onClick={handleOpenAddDialog}
-          sx={{ minWidth: '150px' }}
-        >
-          Add Item
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="outlined"
+            color="primary"
+            startIcon={<InventoryIcon />}
+            onClick={handleReorderClick}
+            disabled={inventorySummary.lowStockItems === 0}
+            title={inventorySummary.lowStockItems === 0 ? 'No low-stock items to reorder' : 'View and reorder low-stock items'}
+            sx={{ minWidth: '150px' }}
+          >
+            Reorder {inventorySummary.lowStockItems > 0 && `(${inventorySummary.lowStockItems})`}
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            onClick={handleOpenAddDialog}
+            sx={{ minWidth: '150px' }}
+          >
+            Add Item
+          </Button>
+        </Box>
       </Box>
       
       <Paper elevation={3} sx={{ p: 3, mb: 3 }}>

@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { Types } from 'mongoose';
 import User, { IUserDocument, UserRole } from '../models/User';
 import { AuthenticatedRequest, JwtPayload } from '../types/express';
+import { setSecureCookie, clearCookie } from '../utils/cookieUtils';
 
 // Define the shape of the user data we'll be working with
 interface IAuthUser {
@@ -12,6 +13,8 @@ interface IAuthUser {
   role: UserRole;
   comparePassword?: (password: string) => Promise<boolean>;
   toObject?: () => any;
+  photoURL?: string;
+  firebaseUid?: string;
 }
 
 // Helper function to send error responses
@@ -27,16 +30,32 @@ type AuthenticatedUser = IUserDocument & {
   name: string;
   email: string;
   comparePassword: (password: string) => Promise<boolean>;
+  photoURL?: string;
+  firebaseUid?: string;
 };
 
 // Generate JWT Token
 const generateToken = (id: string): string => {
   if (!process.env.JWT_SECRET) {
-    throw new Error('JWT_SECRET is not defined in environment variables');
+    console.error('JWT_SECRET is not defined in environment variables');
+    throw new Error('Server configuration error');
   }
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: '30d',
-  });
+  
+  try {
+    return jwt.sign(
+      { id },
+      process.env.JWT_SECRET,
+      { 
+        expiresIn: '30d',
+        algorithm: 'HS256',
+        issuer: 'officeflow-api',
+        audience: 'officeflow-web',
+      }
+    );
+  } catch (error) {
+    console.error('Error generating JWT token:', error);
+    throw new Error('Failed to generate authentication token');
+  }
 };
 
 // @desc    Register a new user
@@ -47,28 +66,63 @@ export const register = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, firebaseUid, role = 'user' } = req.body;
 
     // Validate input
-    if (!name || !email || !password) {
-      sendError(res, 400, 'Please provide name, email and password');
+    if (!name || !email) {
+      sendError(res, 400, 'Please provide name and email');
       return;
     }
 
-    // Check if user already exists
-    const userExists = await User.findOne({ email }).exec();
-    if (userExists) {
-      sendError(res, 400, 'User already exists');
+    // If this is a Firebase auth user, we don't need a password
+    if (!firebaseUid && !password) {
+      sendError(res, 400, 'Password is required');
       return;
     }
 
-    // Create user with default 'user' role
-    const newUser = await User.create({
+    // Check if user already exists by email or firebaseUid
+    const existingUser = await User.findOne({
+      $or: [
+        { email },
+        ...(firebaseUid ? [{ firebaseUid }] : [])
+      ]
+    }).exec();
+
+    if (existingUser) {
+      // If user exists with same email but different auth method
+      if (existingUser.email === email) {
+        sendError(res, 400, 'Email already in use');
+        return;
+      }
+      // If user exists with same firebaseUid but different email (shouldn't happen)
+      if (existingUser.firebaseUid === firebaseUid) {
+        sendError(res, 400, 'User already exists');
+        return;
+      }
+    }
+
+    // Validate role
+    const validRoles: UserRole[] = ['user', 'manager', 'admin'];
+    if (role && !validRoles.includes(role)) {
+      sendError(res, 400, 'Invalid role specified');
+      return;
+    }
+
+    // Create user with specified role (defaults to 'user')
+    const userData: any = {
       name,
       email,
-      password,
-      role: 'user' as const,
-    });
+      role: role as UserRole,
+      ...(firebaseUid && { firebaseUid }),
+      ...(password && { password }) // Only include password if provided
+    };
+
+    // For Firebase users, we don't store a password
+    if (firebaseUid) {
+      delete userData.password;
+    }
+
+    const newUser = await User.create(userData);
 
     if (!newUser) {
       sendError(res, 400, 'Invalid user data');
@@ -78,20 +132,18 @@ export const register = async (
     // Convert to plain object and type it
     const user = (newUser.toObject ? newUser.toObject() : newUser) as IAuthUser;
 
-    // Generate token
-    const userId = user._id?.toString();
-    if (!userId) {
-      throw new Error('User ID is missing');
+    // Generate token with user ID
+    const token = generateToken(user._id.toString());
+    
+    if (!token) {
+      throw new Error('Failed to generate authentication token');
     }
-    const token = generateToken(userId);
 
-    // Set cookie
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    });
+    // Set secure cookie using our utility
+    setSecureCookie(res, 'token', token);
+    
+    // Also set the token in the response header for API clients
+    res.setHeader('Authorization', `Bearer ${token}`);
 
     res.status(201).json({
       success: true,
@@ -117,62 +169,88 @@ export const login = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { email, password } = req.body;
+    const { email, password, firebaseUid } = req.body;
 
     // Validate input
-    if (!email || !password) {
-      sendError(res, 400, 'Please provide email and password');
+    if (!email) {
+      sendError(res, 400, 'Please provide an email');
       return;
     }
 
-    // Check for user
-    const userDoc = await User.findOne({ email }).select('+password').exec();
+    let userDoc;
+
+    // Check if this is a Firebase login
+    if (firebaseUid) {
+      userDoc = await User.findOne({ firebaseUid }).exec();
+      
+      // If no user found with this firebaseUid, try to find by email and update
+      if (!userDoc) {
+        userDoc = await User.findOne({ email }).exec();
+        
+        // If user exists but doesn't have firebaseUid, update it
+        if (userDoc) {
+          userDoc.firebaseUid = firebaseUid;
+          await userDoc.save();
+        }
+      }
+    } else {
+      // Traditional email/password login
+      if (!password) {
+        sendError(res, 400, 'Password is required');
+        return;
+      }
+      
+      userDoc = await User.findOne({ email }).select('+password').exec();
+      
+      if (userDoc) {
+        // Convert to plain object and type it
+        const user = (userDoc.toObject ? userDoc.toObject() : userDoc) as IAuthUser;
+        
+        // Check if password matches
+        if (!user.comparePassword) {
+          sendError(res, 500, 'Authentication error - password comparison not available');
+          return;
+        }
+        
+        const isMatch = await user.comparePassword(password);
+        if (!isMatch) {
+          sendError(res, 401, 'Invalid credentials');
+          return;
+        }
+      }
+    }
+    
+    // Check if user exists
     if (!userDoc) {
       sendError(res, 401, 'Invalid credentials');
       return;
     }
-    
+
     // Convert to plain object and type it
     const user = (userDoc.toObject ? userDoc.toObject() : userDoc) as IAuthUser;
 
-    // Check if password matches
-    if (!user.comparePassword) {
-      sendError(res, 500, 'Authentication error - password comparison not available');
-      return;
-    }
+    // Generate token with user ID
+    const token = generateToken(user._id.toString());
     
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      sendError(res, 401, 'Invalid credentials');
-      return;
+    if (!token) {
+      throw new Error('Failed to generate authentication token');
     }
 
-    // Generate token
-    const userId = user._id?.toString();
-    if (!userId) {
-      throw new Error('User ID is missing');
-    }
-    const token = generateToken(userId);
+    // Set secure cookie using our utility
+    setSecureCookie(res, 'token', token);
+    
+    // Also set the token in the response header for API clients
+    res.setHeader('Authorization', `Bearer ${token}`);
 
-    // Send HTTP-only cookie
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    });
-
-    // Create user data without sensitive information
-    const userData = {
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role as UserRole,
-    };
-
+    // Send response
     res.status(200).json({
       success: true,
-      data: userData,
+      data: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
       token,
     });
   } catch (error) {
@@ -214,9 +292,81 @@ export const getUserProfile = async (
 // @desc    Logout user / clear cookie
 // @route   POST /api/auth/logout
 // @access  Private
+// @desc    Authenticate with Google
+// @route   POST /api/auth/google
+// @access  Public
+export const googleAuth = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { name, email, photoURL, firebaseUid } = req.body;
+
+    // Validate input
+    if (!email || !firebaseUid) {
+      sendError(res, 400, 'Missing required fields');
+      return;
+    }
+
+    // Check if user already exists by firebaseUid or email
+    let user = await User.findOne({ firebaseUid });
+    
+    if (!user) {
+      // Try to find by email if not found by firebaseUid
+      user = await User.findOne({ email });
+      
+      if (user) {
+        // Update existing user with firebaseUid
+        user.set('firebaseUid', firebaseUid);
+        if (photoURL) user.set('photoURL', photoURL);
+      } else {
+        // Create new user
+        user = new User({
+          name: name || email.split('@')[0],
+          email,
+          firebaseUid,
+          role: 'user', // Default role
+          ...(photoURL && { photoURL })
+        });
+      }
+      
+      await user.save();
+    }
+
+    // Generate token
+    const userId = (user as any)._id?.toString();
+    if (!userId) {
+      throw new Error('User ID is missing');
+    }
+    const token = generateToken(userId);
+
+    // Set secure cookie using our utility
+    setSecureCookie(res, 'token', token);
+    
+    // Also set the token in the response header for API clients
+    res.setHeader('Authorization', `Bearer ${token}`);
+
+    // Send response
+    res.status(200).json({
+      success: true,
+      data: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        photoURL: user.photoURL
+      }
+    });
+  } catch (error) {
+    console.error('Google auth error:', error);
+    sendError(res, 500, 'Server error during Google authentication');
+  }
+};
+
 export const logout = (req: Request, res: Response): void => {
   try {
-    res.clearCookie('token');
+    // Use our utility to clear the cookie
+    clearCookie(res, 'token');
     res.json({ success: true, message: 'Logged out successfully' });
   } catch (error) {
     console.error('Logout error:', error);

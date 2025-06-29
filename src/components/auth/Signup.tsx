@@ -17,6 +17,7 @@ import {
 import GoogleIcon from '@mui/icons-material/Google';
 
 const Signup: React.FC = () => {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -29,6 +30,10 @@ const Signup: React.FC = () => {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
+    if (!name.trim()) {
+      return setError('Please enter your name');
+    }
+
     if (password !== confirmPassword) {
       return setError('Passwords do not match');
     }
@@ -36,12 +41,12 @@ const Signup: React.FC = () => {
     try {
       setError('');
       setLoading(true);
-      await signup(email, password);
+      await signup(email, password, name);
       // Note: User will be automatically signed in after signup
       navigate('/onboarding');
     } catch (error: any) {
       console.error('Failed to create an account', error);
-      setError('Failed to create an account: ' + error.message);
+      setError('Failed to create an account: ' + (error.message || 'Please try again'));
     } finally {
       setLoading(false);
     }
@@ -86,11 +91,22 @@ const Signup: React.FC = () => {
               margin="normal"
               required
               fullWidth
+              id="name"
+              label="Full Name"
+              name="name"
+              autoComplete="name"
+              autoFocus
+              value={name}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
               id="email"
               label="Email Address"
               name="email"
               autoComplete="email"
-              autoFocus
               value={email}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
             />

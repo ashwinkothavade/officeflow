@@ -13,6 +13,7 @@ import inventoryRoutes from './routes/inventoryRoutes';
 import healthRoutes from './routes/healthRoutes';
 import reportRoutes from './routes/reportRoutes';
 import userRoutes from './routes/userRoutes';
+import billRoutes from './routes/billRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -42,21 +43,76 @@ const allowedOrigins = [
   'https://officeflow-app.vercel.app',
 ];
 
-app.use(cors({
-  origin: (origin, callback) => {
+// Enable CORS for all routes
+const corsOptions = {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
+    if (!origin) {
+      console.log('CORS: No origin, allowing');
+      return callback(null, true);
     }
-    return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      console.log(`CORS: Allowed origin: ${origin}`);
+      return callback(null, true);
+    }
+    
+    console.warn(`CORS: Blocked origin: ${origin}`);
+    return callback(new Error('The CORS policy for this site does not allow access from the specified Origin.'), false);
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-Requested-With', 
+    'Accept',
+    'X-CSRF-Token',
+    'X-Requested-With',
+    'Accept',
+    'Accept-Version',
+    'Content-Length',
+    'Content-MD5',
+    'Date',
+    'X-Api-Version'
+  ],
+  exposedHeaders: [
+    'Authorization',
+    'Set-Cookie',
+    'Date',
+    'ETag',
+    'Content-Type',
+    'Content-Length'
+  ],
+  maxAge: 86400, // 24 hours
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+};
+
+// Apply CORS middleware
+app.use(cors(corsOptions));
+
+// Handle preflight requests
+app.options('*', cors(corsOptions));
+
+// Trust first proxy (important if behind load balancer or proxy)
+app.set('trust proxy', 1);
+
+// Cookie parser with secret
+app.use(cookieParser(process.env.COOKIE_SECRET || 'your-secret-key'));
+
+// Log all incoming requests for debugging
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`, {
+    headers: {
+      origin: req.headers.origin,
+      cookie: req.headers.cookie ? 'present' : 'missing',
+      authorization: req.headers.authorization ? 'present' : 'missing',
+    },
+    cookies: req.cookies,
+  });
+  next();
+});
 
 // Request logging
 app.use(requestLogger);
@@ -68,6 +124,10 @@ app.use('/api/expenses', expenseRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/bills', billRoutes);
+
+// Serve static files from uploads directory
+app.use('/api/bills', express.static(path.join(__dirname, '..', 'uploads', 'receipts')));
 
 // Health check endpoint
 app.get('/api/health', (req: Request, res: Response) => {

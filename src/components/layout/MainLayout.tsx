@@ -1,5 +1,5 @@
-import React, { ReactNode } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { ReactNode, useState, Fragment } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { 
   Box, 
   Drawer, 
@@ -13,8 +13,7 @@ import {
   Typography,
   IconButton,
   useTheme,
-  useMediaQuery,
-  styled
+  useMediaQuery
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -27,32 +26,15 @@ import {
   People as PeopleIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
-import { useState, useEffect } from 'react';
 
 const drawerWidth = 240;
 
-const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })<{
-  open?: boolean;
-}>(({ theme, open }) => ({
-  flexGrow: 1,
-  padding: theme.spacing(3),
-  transition: theme.transitions.create('margin', {
-    easing: theme.transitions.easing.sharp,
-    duration: theme.transitions.duration.leavingScreen,
-  }),
-  marginLeft: 0,
-  ...(open && {
-    transition: theme.transitions.create('margin', {
-      easing: theme.transitions.easing.easeOut,
-      duration: theme.transitions.duration.enteringScreen,
-    }),
-    marginLeft: 0,
-  }),
-  [theme.breakpoints.up('sm')]: {
-    marginLeft: `${drawerWidth}px`,
-    width: `calc(100% - ${drawerWidth}px)`,
-  },
-}));
+interface MenuItem {
+  text: string;
+  icon: React.ReactNode;
+  path: string;
+  children?: Array<{ text: string; path: string }>;
+}
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -62,12 +44,11 @@ interface MainLayoutProps {
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children, title = 'OfficeFlow', noSidebar = false }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { logout, isAdmin, currentUser } = useAuth();
+  const { logout, isAdmin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const [adminMenuOpen, setAdminMenuOpen] = useState(false);
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   // Get the current page title based on the route
   const getPageTitle = () => {
@@ -93,16 +74,24 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, title = 'OfficeFlow',
     }
   };
 
-  const menuItems = [
+  const menuItems: MenuItem[] = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
     { text: 'Expenses', icon: <ReceiptIcon />, path: '/expenses' },
-    { text: 'Inventory', icon: <InventoryIcon />, path: '/inventory' },
+    { text: 'Upload Bills', icon: <ReceiptIcon />, path: '/upload-bills' },
+    { 
+      text: 'Inventory', 
+      icon: <InventoryIcon />, 
+      path: '/inventory',
+      children: [
+        { text: 'Manage Inventory', path: '/inventory' },
+        { text: 'Reorder', path: '/inventory/order' }
+      ]
+    },
     { text: 'Reports', icon: <InsightsIcon />, path: '/reports' },
     ...(isAdmin ? [{ text: 'User Management', icon: <PeopleIcon />, path: '/user-management' }] : []),
   ];
 
-  const adminMenuItems = [
-    { text: 'Upload Bills', icon: <ReceiptIcon />, path: '/upload-bills' },
+  const adminMenuItems: MenuItem[] = [
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
   ];
 
@@ -116,22 +105,58 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, title = 'OfficeFlow',
       <Divider />
       <List>
         {menuItems.map((item) => (
-          <ListItem 
-            key={item.text}
-            onClick={() => {
-              navigate(item.path);
-              if (isMobile) setMobileOpen(false);
-            }}
-            sx={{
-              cursor: 'pointer',
-              '&:hover': {
-                backgroundColor: 'action.hover',
-              },
-            }}
-          >
-            <ListItemIcon>{item.icon}</ListItemIcon>
-            <ListItemText primary={item.text} />
-          </ListItem>
+          <Fragment key={item.text}>
+            <ListItem 
+              onClick={() => {
+                if (!item.children) {
+                  navigate(item.path);
+                  if (isMobile) setMobileOpen(false);
+                }
+              }}
+              sx={{
+                cursor: 'pointer',
+                '&:hover': {
+                  backgroundColor: 'action.hover',
+                },
+              }}
+            >
+              <ListItemIcon>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.text} />
+            </ListItem>
+            {item.children && (
+              <Box sx={{ pl: 3 }}>
+                {item.children.map((child) => (
+                  <ListItem 
+                    key={child.path}
+                    component={Link}
+                    to={child.path}
+                    onClick={() => isMobile && setMobileOpen(false)}
+                    sx={{
+                      cursor: 'pointer',
+                      color: 'text.secondary',
+                      '&:hover': {
+                        color: 'primary.main',
+                        backgroundColor: 'action.hover',
+                      },
+                      py: 0.5,
+                      pl: 4,
+                    }}
+                  >
+                    <ListItemText 
+                      primary={child.text} 
+                      primaryTypographyProps={{
+                        variant: 'body2',
+                        sx: {
+                          fontWeight: location.pathname === child.path ? 'bold' : 'normal',
+                          color: location.pathname === child.path ? 'primary.main' : 'inherit',
+                        }
+                      }}
+                    />
+                  </ListItem>
+                ))}
+              </Box>
+            )}
+          </Fragment>
         ))}
 
         {isAdmin && (

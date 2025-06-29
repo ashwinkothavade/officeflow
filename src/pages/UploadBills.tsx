@@ -1,345 +1,334 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useDropzone } from 'react-dropzone';
+import { useAuth } from '../context/AuthContext';
+import axios from 'axios';
+import { Bill } from '../types/bill';
 import { 
-  Typography, 
-  Paper, 
   Box, 
+  Typography, 
+  CircularProgress, 
+  Paper, 
   Button, 
-  TextField, 
-  MenuItem, 
-  FormControl, 
-  InputLabel, 
-  Select, 
-  SelectChangeEvent,
-  CircularProgress,
+  Chip,
+  Divider,
   Alert,
-  SxProps,
-  Theme
+  Snackbar,
+  List,
+  ListItem
 } from '@mui/material';
-import { CloudUpload, Close, CheckCircle } from '@mui/icons-material';
-import { useDropzone, DropzoneOptions, FileWithPath } from 'react-dropzone';
+import { 
+  CloudUpload as CloudUploadIcon, 
+  PictureAsPdf as PdfIcon, 
+  Image as ImageIcon,
+  Description as DescriptionIcon
+} from '@mui/icons-material';
 
-interface BillData {
-  vendor: string;
-  date: string;
-  amount: string;
-  category: string;
-  description: string;
-  file: File | null;
+// Define API response types
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  message?: string;
+}
+
+interface BillsResponse {
+  data: Bill[];
+  count: number;
 }
 
 const UploadBills: React.FC = () => {
-  const [bill, setBill] = useState<BillData>({
-    vendor: '',
-    date: new Date().toISOString().split('T')[0],
-    amount: '',
-    category: '',
-    description: '',
-    file: null
-  });
+  const { currentUser } = useAuth();
+  const [bills, setBills] = useState<Bill[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState<{success: boolean; message: string} | null>(null);
-  const [extractedText, setExtractedText] = useState('');
 
-  const onDrop = useCallback((acceptedFiles: FileWithPath[]) => {
-    if (acceptedFiles.length > 0) {
-      const file = acceptedFiles[0];
-      setBill(prev => ({ ...prev, file }));
-      simulateTextExtraction(file);
-    }
-  }, []);
+  // Helper function to get auth headers
+  const getAuthHeader = useCallback(async () => {
+    const token = await currentUser?.getIdToken();
+    return {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    };
+  }, [currentUser]);
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'application/pdf': ['.pdf'],
-      'image/*': ['.png', '.jpg', '.jpeg']
-    },
-    maxFiles: 1,
-    disabled: isUploading
-  });
+  // Fetch user's bills on component mount
+  useEffect(() => {
+    const fetchBills = async () => {
+      if (!currentUser) return;
+      
+      setIsLoading(true);
+      try {
+        const response = await axios.get<ApiResponse<BillsResponse>>('/api/bills', {
+          headers: await getAuthHeader()
+        });
+        setBills(response.data.data.data);
+      } catch (error) {
+        console.error('Error fetching bills:', error);
+        console.error('Failed to load bills');
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const removeFile = useCallback(() => {
-    setBill(prev => ({ ...prev, file: null }));
-    setExtractedText('');
-  }, []);
+    fetchBills();
+  }, [currentUser, getAuthHeader]);
 
-  const simulateTextExtraction = (file: File) => {
-    setIsUploading(true);
-    // Simulate API call for text extraction
-    setTimeout(() => {
-      setExtractedText('Sample extracted text from the bill...');
-      setIsUploading(false);
-    }, 1500);
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setBill(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleCategoryChange = (e: SelectChangeEvent<string>) => {
-    setBill(prev => ({
-      ...prev,
-      category: e.target.value
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!bill.file) return;
+  // Handle file upload
+  const onDrop = async (acceptedFiles: File[]) => {
+    if (!acceptedFiles.length) return;
+    
+    const file = acceptedFiles[0];
+    const formData = new FormData();
+    formData.append('receipt', file);
 
     setIsUploading(true);
-    setUploadStatus(null);
-
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const response = await axios.post<ApiResponse<{ data: Bill }>>(
+        '/api/bills/upload', 
+        formData, 
+        {
+          headers: {
+            ...(await getAuthHeader()),
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
       
-      setUploadStatus({
-        success: true,
-        message: 'Bill uploaded and processed successfully!'
+      // Add the new bill to the list
+      setBills(prevBills => [response.data.data.data, ...prevBills]);
+      setSnackbar({
+        open: true,
+        message: 'Bill uploaded and processed successfully!',
+        severity: 'success'
       });
-      
-      // Reset form
-      setBill({
-        vendor: '',
-        date: new Date().toISOString().split('T')[0],
-        amount: '',
-        category: '',
-        description: '',
-        file: null
-      });
-      setExtractedText('');
     } catch (error) {
-      setUploadStatus({
-        success: false,
-        message: 'Failed to upload bill. Please try again.'
+      console.error('Error uploading bill:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to upload bill. Please try again.',
+        severity: 'error'
       });
     } finally {
       setIsUploading(false);
     }
   };
 
-  const categories = [
-    'Office Supplies',
-    'Utilities',
-    'Rent',
-    'Software',
-    'Hardware',
-    'Travel',
-    'Meals',
-    'Other'
-  ];
-
-  const dropzoneSx: SxProps<Theme> = {
-    p: 4,
-    border: '2px dashed',
-    borderColor: 'divider',
-    textAlign: 'center',
-    cursor: 'pointer',
-    '&:hover': {
-      borderColor: 'primary.main',
-      backgroundColor: 'action.hover'
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'image/*': ['.jpeg', '.jpg', '.png'],
+      'application/pdf': ['.pdf'],
+      'application/msword': ['.doc'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx']
     },
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 2,
+    maxSize: 5 * 1024 * 1024, // 5MB
+    multiple: false,
+    disabled: isUploading
+  });
+  
+  const [snackbar, setSnackbar] = useState<{open: boolean; message: string; severity: 'success' | 'error'}>({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
+
+  const handleCloseSnackbar = () => {
+    setSnackbar(prev => ({...prev, open: false}));
+  };
+
+  // Format date
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        return 'Invalid date';
+      }
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Invalid date';
+    }
+  };
+
+  // Format currency
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(amount);
+  };
+
+  const renderFileIcon = (fileName: string) => {
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    switch (ext) {
+      case 'pdf':
+        return <PdfIcon color="error" />;
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+        return <ImageIcon color="primary" />;
+      case 'doc':
+      case 'docx':
+        return <DescriptionIcon color="info" />;
+      default:
+        return <DescriptionIcon color="action" />;
+    }
   };
 
   return (
-    <Box>
+    <Box sx={{ p: 3, maxWidth: 1200, margin: '0 auto' }}>
       <Typography variant="h4" component="h1" gutterBottom>
         Upload Bills
       </Typography>
       
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
-        <Box>
-          <Box 
-            {...getRootProps()}
-            sx={dropzoneSx}
-          >
-            <input {...getInputProps()} />
-            {isUploading ? (
-              <>
-                <CircularProgress />
-                <Typography>Processing your bill...</Typography>
-              </>
-            ) : bill.file ? (
-              <Box textAlign="center">
-                <CheckCircle color="success" sx={{ fontSize: 48, mb: 1 }} />
-                <Typography variant="subtitle1">{bill.file.name}</Typography>
-                <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                  {Math.round(bill.file.size / 1024)} KB
-                </Typography>
-                <Button 
-                  variant="outlined" 
-                  color="error" 
-                  size="small" 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeFile();
-                  }}
-                  sx={{ mt: 2 }}
-                  startIcon={<Close />}
-                >
-                  Remove File
-                </Button>
-              </Box>
-            ) : (
-              <>
-                <CloudUpload sx={{ fontSize: 48, color: 'text.secondary' }} />
-                <Box>
-                  <Typography variant="h6">Drag & drop your bill here</Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    or click to select a file (PDF, PNG, JPG)
-                  </Typography>
-                </Box>
-              </>
-            )}
+      {/* Upload Zone */}
+      <Paper 
+        {...getRootProps()} 
+        variant="outlined"
+        sx={{
+          p: 6,
+          textAlign: 'center',
+          border: '2px dashed',
+          borderColor: isDragActive ? 'primary.main' : 'divider',
+          backgroundColor: isDragActive ? 'action.hover' : 'background.paper',
+          cursor: isUploading ? 'progress' : 'pointer',
+          '&:hover': {
+            borderColor: 'primary.main',
+            backgroundColor: 'action.hover',
+          },
+          mb: 4
+        }}
+      >
+        <input {...getInputProps()} />
+        {isUploading ? (
+          <Box>
+            <CircularProgress size={40} thickness={4} />
+            <Typography variant="body1" sx={{ mt: 2 }}>Processing your bill...</Typography>
           </Box>
-        </Box>
-        <Box>
-          <Paper elevation={3} sx={{ p: 3, height: '100%' }}>
-            <Typography variant="h6" gutterBottom>
-              Bill Details
+        ) : isDragActive ? (
+          <Box>
+            <CloudUploadIcon color="primary" sx={{ fontSize: 48, mb: 2 }} />
+            <Typography variant="h6" color="primary">Drop the bill here</Typography>
+          </Box>
+        ) : (
+          <Box>
+            <CloudUploadIcon color="action" sx={{ fontSize: 48, mb: 2 }} />
+            <Typography variant="h6" gutterBottom>Drag & drop a bill here</Typography>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              or click to select a file
             </Typography>
-            
-            {uploadStatus && (
-              <Alert 
-                severity={uploadStatus.success ? 'success' : 'error'}
-                sx={{ mb: 3 }}
-              >
-                {uploadStatus.message}
-              </Alert>
-            )}
-            
-            {extractedText && (
-              <Paper 
-                variant="outlined" 
-                sx={{ 
-                  p: 2, 
-                  mb: 3, 
-                  backgroundColor: 'action.hover',
-                  fontFamily: 'monospace',
-                  whiteSpace: 'pre-wrap',
-                  maxHeight: '150px',
-                  overflow: 'auto',
-                  fontSize: '0.8rem'
-                }}
-              >
-                <Typography variant="caption" color="text.secondary">
-                  Extracted Information:
-                </Typography>
-                <Typography variant="body2">
-                  {extractedText}
-                </Typography>
-              </Paper>
-            )}
-            
-            <form onSubmit={handleSubmit}>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
-                <Box>
-                  <TextField
-                    fullWidth
-                    label="Vendor"
-                    name="vendor"
-                    value={bill.vendor}
-                    onChange={handleInputChange}
-                    required
-                    margin="normal"
-                    size="small"
-                  />
-                </Box>
-                <Box>
-                  <TextField
-                    fullWidth
-                    label="Date"
-                    type="date"
-                    name="date"
-                    value={bill.date}
-                    onChange={handleInputChange}
-                    required
-                    margin="normal"
-                    InputLabelProps={{
-                      shrink: true,
-                    }}
-                    size="small"
-                  />
-                </Box>
-                <Box>
-                  <TextField
-                    fullWidth
-                    label="Amount"
-                    type="number"
-                    name="amount"
-                    value={bill.amount}
-                    onChange={handleInputChange}
-                    required
-                    margin="normal"
-                    InputProps={{
-                      startAdornment: '$',
-                    }}
-                    size="small"
-                  />
-                </Box>
-                <Box>
-                  <FormControl fullWidth margin="normal" size="small">
-                    <InputLabel id="category-label">Category</InputLabel>
-                    <Select
-                      labelId="category-label"
-                      name="category"
-                      value={bill.category}
-                      onChange={handleCategoryChange}
-                      label="Category"
-                      required
-                    >
-                      {categories.map((category) => (
-                        <MenuItem key={category} value={category}>
-                          {category}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Box>
-                <Box sx={{ gridColumn: '1 / -1' }}>
-                  <TextField
-                    fullWidth
-                    label="Description"
-                    name="description"
-                    value={bill.description}
-                    onChange={handleInputChange}
-                    margin="normal"
-                    multiline
-                    rows={3}
-                    size="small"
-                  />
-                </Box>
-                <Box sx={{ gridColumn: '1 / -1' }}>
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    color="primary"
-                    disabled={isUploading || !bill.file}
-                    fullWidth
-                    sx={{ mt: 2 }}
-                  >
-                    {isUploading ? (
-                      <CircularProgress size={24} />
-                    ) : (
-                      'Save Bill'
-                    )}
-                  </Button>
-                </Box>
-              </Box>
-            </form>
-          </Paper>
+            <Typography variant="caption" color="text.secondary">
+              Supported formats: JPG, PNG, PDF, DOC, DOCX (max 5MB)
+            </Typography>
+          </Box>
+        )}
+      </Paper>
+
+      {/* Bills List */}
+      <Paper sx={{ overflow: 'hidden' }}>
+        <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+          <Typography variant="h6">Your Bills</Typography>
         </Box>
-      </Box>
+        
+        {isLoading ? (
+          <Box sx={{ p: 4, textAlign: 'center' }}>
+            <CircularProgress />
+            <Typography sx={{ mt: 2 }}>Loading your bills...</Typography>
+          </Box>
+        ) : bills.length === 0 ? (
+          <Box sx={{ p: 4, textAlign: 'center' }}>
+            <Typography color="text.secondary">No bills found. Upload your first bill above.</Typography>
+          </Box>
+        ) : (
+          <List>
+            {bills.map((bill) => (
+              <React.Fragment key={bill._id}>
+                <ListItem 
+                  sx={{
+                    '&:hover': { bgcolor: 'action.hover' },
+                    transition: 'background-color 0.2s',
+                    display: 'flex',
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    alignItems: { xs: 'flex-start', sm: 'center' },
+                    p: 2
+                  }}
+                >
+                  <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center',
+                    flex: 1,
+                    mb: { xs: 1, sm: 0 }
+                  }}>
+                    <Box sx={{ mr: 2, display: 'flex' }}>
+                      {bill.receiptUrl ? renderFileIcon(bill.receiptUrl) : <DescriptionIcon />}
+                    </Box>
+                    <Box>
+                      <Typography variant="subtitle1" component="div">
+                        {bill.description || 'Untitled Bill'}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {formatDate(bill.date)} • {bill.category}
+                      </Typography>
+                    </Box>
+                  </Box>
+                  
+                  <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    width: { xs: '100%', sm: 'auto' },
+                    mt: { xs: 1, sm: 0 }
+                  }}>
+                    <Typography variant="h6" sx={{ mr: 2, fontWeight: 'bold' }}>
+                      {formatCurrency(bill.amount)}
+                    </Typography>
+                    <Box>
+                      <Chip 
+                        label={bill.status.charAt(0).toUpperCase() + bill.status.slice(1)}
+                        color={
+                          bill.status === 'approved' ? 'success' : 
+                          bill.status === 'rejected' ? 'error' : 'warning'
+                        }
+                        size="small"
+                        sx={{ mr: 1 }}
+                      />
+                      {bill.receiptUrl && (
+                        <Button 
+                          size="small" 
+                          href={bill.receiptUrl} 
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          View
+                        </Button>
+                      )}
+                    </Box>
+                  </Box>
+                </ListItem>
+                <Divider component="li" />
+              </React.Fragment>
+            ))}
+          </List>
+        )}
+      </Paper>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={handleCloseSnackbar} 
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
