@@ -23,7 +23,8 @@ import {
   Inventory as InventoryIcon,
   Insights as InsightsIcon,
   Settings as SettingsIcon,
-  Logout as LogoutIcon
+  Logout as LogoutIcon,
+  People as PeopleIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { useState, useEffect } from 'react';
@@ -97,6 +98,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, title = 'OfficeFlow',
     { text: 'Expenses', icon: <ReceiptIcon />, path: '/expenses' },
     { text: 'Inventory', icon: <InventoryIcon />, path: '/inventory' },
     { text: 'Reports', icon: <InsightsIcon />, path: '/reports' },
+    ...(isAdmin ? [{ text: 'User Management', icon: <PeopleIcon />, path: '/user-management' }] : []),
   ];
 
   const adminMenuItems = [
