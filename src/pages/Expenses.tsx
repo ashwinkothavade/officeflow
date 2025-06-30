@@ -28,8 +28,29 @@ import {
   Alert,
   CircularProgress
 } from '@mui/material';
-import { Add as AddIcon, Close as CloseIcon, Search as SearchIcon } from '@mui/icons-material';
+import { Add as AddIcon, Close as CloseIcon, Search as SearchIcon, CloudUpload as CloudUploadIcon } from '@mui/icons-material';
 import { expenseApi, Expense as ApiExpense } from '../services/api';
+import BillUpload from '../components/BillUpload';
+
+interface BillData {
+  _id?: string;
+  amount: number;
+  category: string;
+  date: string;
+  vendor: string;
+  description: string;
+  status: 'pending' | 'approved' | 'rejected';
+  receiptUrl?: string;
+  receipt?: string;
+  items?: Array<{
+    name: string;
+    quantity?: number;
+    price: number;
+  }>;
+  createdAt?: string;
+  updatedAt?: string;
+  user?: string;
+}
 
 interface Expense {
   _id: string;
@@ -44,7 +65,10 @@ type Order = 'asc' | 'desc';
 
 const Expenses: React.FC = () => {
   const [open, setOpen] = useState(false);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [expenses, setExpenses] = useState<ApiExpense[]>([]);
+  const [selectedExpense, setSelectedExpense] = useState<BillData | null>(null);
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [filteredExpenses, setFilteredExpenses] = useState<ApiExpense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -285,7 +309,7 @@ const Expenses: React.FC = () => {
       description: expense.description,
       amount: expense.amount.toString(),
       category: expense.category,
-      date: formatDateForInput(expense.date)
+      date: expense.date.split('T')[0] // Ensure date is in YYYY-MM-DD format for the date input
     });
     setOpen(true);
   };
@@ -397,6 +421,61 @@ const Expenses: React.FC = () => {
     setSnackbar(prev => ({ ...prev, open: false }));
   };
 
+  // Handle successful bill upload
+  const handleBillUploadSuccess = (newExpense: BillData) => {
+    const formattedExpense: ApiExpense = {
+      _id: newExpense._id || Date.now().toString(),
+      description: newExpense.description,
+      amount: newExpense.amount,
+      category: newExpense.category,
+      date: newExpense.date,
+      status: newExpense.status || 'pending',
+      receipt: newExpense.receiptUrl || newExpense.receipt || '',
+      user: 'current-user-id', // This should be replaced with the actual user ID
+      createdAt: newExpense.createdAt || new Date().toISOString(),
+      updatedAt: newExpense.updatedAt || new Date().toISOString()
+    };
+    
+    setExpenses(prev => [formattedExpense, ...prev]);
+    setIsUploadOpen(false);
+    
+    setSnackbar({
+      open: true,
+      message: 'Bill uploaded and expense created successfully!',
+      severity: 'success',
+    });
+  };
+
+  // Handle view receipt
+  const handleViewReceipt = (expense: ApiExpense) => {
+    // Create a minimal BillData object with required properties
+    const billData: BillData = {
+      _id: expense._id,
+      amount: expense.amount,
+      category: expense.category,
+      date: expense.date,
+      vendor: 'Unknown Vendor', // Default value since ApiExpense doesn't have vendor
+      description: expense.description,
+      status: (expense.status as 'pending' | 'approved' | 'rejected') || 'pending',
+      receiptUrl: expense.receipt,
+      receipt: expense.receipt,
+      createdAt: expense.createdAt || new Date().toISOString(),
+      updatedAt: expense.updatedAt || new Date().toISOString(),
+      // Add empty array for optional items
+      items: []
+    };
+    
+    setSelectedExpense(billData);
+    setIsViewerOpen(true);
+  };
+
+  // Format amount safely
+  const formatAmount = (amount: number | string | undefined): string => {
+    if (amount === undefined || amount === null) return '₹0.00';
+    const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+    return isNaN(num) ? '₹0.00' : `₹${num.toFixed(2)}`;
+  };
+
   // Handle search and filter changes
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
@@ -439,15 +518,26 @@ const Expenses: React.FC = () => {
           <Typography variant="h4" component="h1">
             Expenses
           </Typography>
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<AddIcon />}
-            onClick={handleOpen}
-            sx={{ minWidth: '150px' }}
-          >
-            Add Expense
-          </Button>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button
+              variant="outlined"
+              color="primary"
+              startIcon={<CloudUploadIcon />}
+              onClick={() => setIsUploadOpen(true)}
+              sx={{ minWidth: '150px' }}
+            >
+              Upload Bill
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon />}
+              onClick={handleOpen}
+              sx={{ minWidth: '150px' }}
+            >
+              Add Expense
+            </Button>
+          </Box>
         </Box>
 
         {/* Search and Filter Section */}
@@ -671,23 +761,38 @@ const Expenses: React.FC = () => {
                   </TableCell>
                   <TableCell align="right">{formatCurrency(Number(expense.amount) || 0)}</TableCell>
                   <TableCell>
-                    <Button 
-                      size="small" 
-                      color="primary"
-                      onClick={() => handleEdit(expense)}
-                      disabled={expense.status === 'approved'}
-                    >
-                      Edit
-                    </Button>
-                    <Button 
-                      size="small" 
-                      color="error" 
-                      onClick={() => handleDelete(expense._id)}
-                      disabled={expense.status === 'approved'}
-                      sx={{ ml: 1 }}
-                    >
-                      Delete
-                    </Button>
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                      {expense.receipt && (
+                        <Button 
+                          size="small" 
+                          variant="outlined"
+                          onClick={() => handleViewReceipt(expense)}
+                          sx={{ minWidth: '100px' }}
+                        >
+                          View Receipt
+                        </Button>
+                      )}
+                      <Button 
+                        size="small" 
+                        color="primary"
+                        variant="outlined"
+                        onClick={() => handleEdit(expense)}
+                        disabled={expense.status === 'approved'}
+                        sx={{ minWidth: '80px' }}
+                      >
+                        Edit
+                      </Button>
+                      <Button 
+                        size="small" 
+                        color="error" 
+                        variant="outlined"
+                        onClick={() => handleDelete(expense._id)}
+                        disabled={expense.status === 'approved'}
+                        sx={{ minWidth: '80px' }}
+                      >
+                        Delete
+                      </Button>
+                    </Box>
                   </TableCell>
                 </TableRow>
               ))
@@ -788,12 +893,54 @@ const Expenses: React.FC = () => {
         open={snackbar.open} 
         autoHideDuration={6000} 
         onClose={handleSnackbarClose}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        <Alert onClose={handleSnackbarClose} severity={snackbar.severity}>
+        <Alert onClose={handleSnackbarClose} severity={snackbar.severity} sx={{ width: '100%' }}>
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* Bill Upload Dialog */}
+      <BillUpload
+        open={isUploadOpen}
+        onClose={() => setIsUploadOpen(false)}
+        onUploadSuccess={handleBillUploadSuccess}
+      />
+
+      {/* Receipt Viewer Modal */}
+      <Dialog
+        open={isViewerOpen}
+        onClose={() => setIsViewerOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Receipt</DialogTitle>
+        <IconButton
+          aria-label="close"
+          onClick={() => setIsViewerOpen(false)}
+          sx={{
+            position: 'absolute',
+            right: 8,
+            top: 8,
+            color: (theme) => theme.palette.grey[500],
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
+        <DialogContent>
+          {selectedExpense?.receiptUrl ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+              <img 
+                src={selectedExpense.receiptUrl} 
+                alt="Receipt" 
+                style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }} 
+              />
+            </Box>
+          ) : (
+            <Typography>No receipt available</Typography>
+          )}
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 };
