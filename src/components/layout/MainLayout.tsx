@@ -89,6 +89,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, title = 'OfficeFlow',
       ]
     },
     { text: 'Reports', icon: <InsightsIcon />, path: '/reports' },
+    { text: 'Vendors', icon: <PeopleIcon />, path: '/vendors' },
     ...(isAdmin ? [{ text: 'User Management', icon: <PeopleIcon />, path: '/user-management' }] : []),
   ];
 

@@ -15,6 +15,7 @@ import reportRoutes from './routes/reportRoutes';
 import userRoutes from './routes/userRoutes';
 import billRoutes from './routes/billRoutes';
 import foodItemRoutes from './routes/foodItemRoutes';
+import vendorRoutes from './routes/vendorRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -41,6 +42,7 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
   'http://localhost:5000',
+  'http://localhost:5001',
   'https://officeflow-app.vercel.app',
 ];
 
@@ -127,6 +129,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/bills', billRoutes);
 app.use('/api/food-items', foodItemRoutes);
+app.use('/api/vendors', vendorRoutes);
 
 // Serve static files from uploads directory
 app.use('/api/bills', express.static(path.join(__dirname, '..', 'uploads', 'receipts')));

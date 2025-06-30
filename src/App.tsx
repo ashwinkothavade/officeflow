@@ -23,6 +23,7 @@ const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const InventoryOrder = lazy(() => import('./pages/InventoryOrder'));
 const FoodInventory = lazy(() => import('./pages/FoodInventory'));
+const Vendors = lazy(() => import('./pages/Vendors'));
 
 const theme = createTheme({
   palette: {
@@ -275,6 +276,16 @@ function App() {
                     <MainLayout>
                       <Suspense fallback={<LoadingSpinner />}>
                         <FoodInventory />
+                      </Suspense>
+                    </MainLayout>
+                  </PrivateRoute>
+                } />
+
+                <Route path="/vendors" element={
+                  <PrivateRoute>
+                    <MainLayout>
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <Vendors />
                       </Suspense>
                     </MainLayout>
                   </PrivateRoute>
