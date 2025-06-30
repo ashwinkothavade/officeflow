@@ -45,7 +45,7 @@ interface ExpenseSummary {
   monthlyTrend: Array<{ month: string; amount: number; count: number }>;
 }
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000'}/api`;
 
 // Set up axios instance
 const api = axios.create({

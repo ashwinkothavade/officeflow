@@ -75,7 +75,7 @@ const Reports: React.FC = () => {
       if (filters.status) params.append('status', filters.status);
       
       // Use the full URL for API requests
-      const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+      const baseUrl = `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000'}/api`;
       const response = await axios.get<{ data: ExpenseReport }>(`${baseUrl}/reports/expenses?${params.toString()}`, {
         withCredentials: true, // Include cookies for authentication
         headers: {
@@ -104,7 +104,7 @@ const Reports: React.FC = () => {
       if (filters.category) params.append('category', filters.category);
       if (filters.status) params.append('status', filters.status);
       
-      const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+      const baseUrl = `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000'}/api`;
       window.open(`${baseUrl}/reports/expenses/export?${params.toString()}`, '_blank');
     } catch (err) {
       console.error('Error exporting report:', err);
